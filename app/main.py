@@ -1,49 +1,47 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import time
+from app.api.routes import router
+from app.core.config import settings
 
-from .config import get_settings
-from .database import init_db
-from .routers import email_router
-
-settings = get_settings()
-
-# Initialize FastAPI app
+# Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-    🚀 Email Deliverability Checker API
+    ## Email Deliverability Checker API
     
-    Validate email addresses with comprehensive checks:
-    - ✅ Syntax validation
-    - ✅ MX record verification  
-    - ✅ Disposable email detection
-    - ✅ SMTP mailbox verification
-    - 📊 Deliverability scoring (0-100)
+    Comprehensive email validation service with:
     
-    Perfect for:
-    - User registration validation
-    - Email list cleaning
-    - Marketing campaign prep
-    - Fraud prevention
+    * **Syntax Validation** - RFC-compliant email format checking
+    * **MX Records** - Domain mail server verification
+    * **Disposable Detection** - Temporary email provider identification
+    * **SMTP Verification** - Mailbox existence validation (optional)
+    * **Deliverability Score** - 0-100 score indicating email quality
     
-    ## Authentication
-    Available on RapidAPI with tiered pricing:
-    - **Free**: 100 validations/month
-    - **Basic ($19)**: 5,000 validations/month
-    - **Pro ($49)**: 50,000 validations/month
+    ### Rate Limits (RapidAPI)
     
-    ## Rate Limits
-    Limits are enforced by RapidAPI based on your subscription tier.
+    - **Free Plan**: 100 validations/month
+    - **Basic Plan** ($19/mo): 5,000 validations/month
+    - **Pro Plan** ($49/mo): 50,000 validations/month
+    
+    ### Quick Start
+    
+    1. Get your API key from RapidAPI
+    2. Make a POST request to `/api/v1/validate`
+    3. Receive comprehensive validation results
+    
+    ### Performance
+    
+    - **Standard validation**: ~100-300ms per email
+    - **With SMTP check**: ~1-3s per email
+    - **Bulk validation**: Optimized for batch processing
     """,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url=f"{settings.API_PREFIX}/openapi.json"
+    openapi_url="/openapi.json"
 )
 
-# CORS Configuration
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -52,77 +50,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Request timing middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
+# Include API routes
+app.include_router(
+    router,
+    prefix=settings.API_V1_PREFIX,
+    tags=["Email Validation"]
+)
 
 
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database tables on application startup"""
-    init_db()
-    print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
-    print(f"📚 Documentation available at: /docs")
-
-
-# Health check endpoint
-@app.get("/", tags=["Health"])
+@app.get("/")
 async def root():
-    """Root endpoint - API health check"""
+    """
+    Root endpoint with API information
+    """
     return {
-        "status": "online",
-        "service": settings.APP_NAME,
+        "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "docs": "/docs",
+        "health": f"{settings.API_V1_PREFIX}/health",
         "endpoints": {
-            "validate_single": f"{settings.API_PREFIX}/email/validate",
-            "validate_batch": f"{settings.API_PREFIX}/email/validate/batch",
-            "stats": f"{settings.API_PREFIX}/email/stats"
+            "validate_single": f"{settings.API_V1_PREFIX}/validate",
+            "validate_bulk": f"{settings.API_V1_PREFIX}/validate/bulk",
+            "stats": f"{settings.API_V1_PREFIX}/stats"
         }
     }
 
 
-@app.get("/health", tags=["Health"])
-async def health_check():
-    """Detailed health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "database": "connected",
-        "smtp_check_enabled": settings.SMTP_CHECK_ENABLED
-    }
+@app.on_event("startup")
+async def startup_event():
+    """
+    Startup event handler
+    """
+    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
+    print(f"📍 API Documentation: http://localhost:8000/docs")
+    print(f"🔍 Health Check: http://localhost:8000{settings.API_V1_PREFIX}/health")
 
 
-# Include routers
-app.include_router(email_router, prefix=settings.API_PREFIX)
-
-
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal server error",
-            "message": str(exc),
-            "path": str(request.url)
-        }
-    )
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Shutdown event handler
+    """
+    print(f"👋 {settings.APP_NAME} shutting down...")

@@ -1,187 +1,96 @@
 # 📧 Email Deliverability Checker API
 
-A comprehensive FastAPI-based email validation service with deliverability scoring, designed for deployment on Render and distribution via RapidAPI.
+A comprehensive email validation API built with FastAPI that checks email deliverability through multiple validation layers.
 
 ## 🚀 Features
 
-### Core Validations
 - ✅ **Syntax Validation** - RFC-compliant email format checking
-- ✅ **MX Record Verification** - Checks if domain can receive emails
-- ✅ **Disposable Email Detection** - Identifies temporary/throwaway emails
-- ✅ **SMTP Verification** - Verifies if mailbox actually exists (optional)
-- 📊 **Deliverability Score** - 0-100 score with risk assessment
+- 🌐 **MX Records Verification** - Checks if domain can receive emails
+- 🚫 **Disposable Email Detection** - Identifies temporary/throwaway emails
+- 📬 **SMTP Verification** - Validates actual mailbox existence (optional)
+- 📊 **Deliverability Score** - 0-100 score indicating email quality
+- ⚡ **Bulk Validation** - Validate up to 100 emails per request
+- 🔒 **API Key Authentication** - Secure access via RapidAPI
 
-### Additional Features
-- 🔄 Batch validation (up to 100 emails)
-- 📈 Validation statistics
-- 🔐 RapidAPI integration ready
-- 💾 PostgreSQL database logging
-- 🐳 Docker containerized
-- 📚 Auto-generated API documentation
+## 🛠️ Tech Stack
 
-## 💰 Pricing Tiers (RapidAPI)
-
-| Tier | Price | Validations/Month |
-|------|-------|-------------------|
-| Free | $0 | 100 |
-| Basic | $19 | 5,000 |
-| Pro | $49 | 50,000 |
-
-## 🏗️ Tech Stack
-
-- **Backend**: Python 3.11 + FastAPI
+- **Framework**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL
-- **Hosting**: Render
+- **Deployment**: Render
 - **Marketplace**: RapidAPI
-- **Frontend** (future): Next.js
+- **Email Validation**: dnspython, email-validator
+- **SMTP**: aiosmtplib (async)
 
-## 📋 Prerequisites
+## 📦 Installation
+
+### Prerequisites
 
 - Python 3.11+
 - PostgreSQL 14+
-- Docker (optional)
-- Git
+- pip
 
-## 🛠️ Local Development Setup
+### Setup
 
-### 1. Clone the Repository
-
+1. **Clone the repository**
 ```bash
 git clone <your-repo-url>
-cd email-deliverability-api
+cd email-validator-api
 ```
 
-### 2. Create Virtual Environment
-
+2. **Create virtual environment**
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
-
+3. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-
+4. **Configure environment**
 ```bash
 cp .env.example .env
+# Edit .env with your configuration
 ```
 
-Edit `.env` and configure:
+5. **Run the application**
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## 🔧 Configuration
+
+Edit `.env` file:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/email_deliverability
-RAPIDAPI_PROXY_SECRET=your-secret-here
-SMTP_CHECK_ENABLED=true
+# Application
+APP_NAME="Email Deliverability Checker API"
+DEBUG=True
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/email_validator
+
+# Security
+SECRET_KEY=your-super-secret-key
+
+# SMTP
+SMTP_FROM_EMAIL=verify@yourdomain.com
 ```
 
-### 5. Setup Database
+## 📖 API Documentation
 
-```bash
-# Create PostgreSQL database
-createdb email_deliverability
-
-# Tables will be auto-created on first run
+### Base URL
+```
+http://localhost:8000/api/v1
 ```
 
-### 6. Run the Application
+### Endpoints
 
-```bash
-uvicorn app.main:app --reload
-```
+#### 1. Validate Single Email
 
-Visit:
-- API Documentation: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+**POST** `/validate`
 
-## 🐳 Docker Deployment
-
-### Build Image
-
-```bash
-docker build -t email-deliverability-api .
-```
-
-### Run Container
-
-```bash
-docker run -d \
-  -p 8000:8000 \
-  -e DATABASE_URL=postgresql://user:password@host:5432/db \
-  email-deliverability-api
-```
-
-### Using Docker Compose (Optional)
-
-Create `docker-compose.yml`:
-
-```yaml
-version: '3.8'
-
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/email_deliverability
-    depends_on:
-      - db
-
-  db:
-    image: postgres:14
-    environment:
-      - POSTGRES_DB=email_deliverability
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-```
-
-Run: `docker-compose up -d`
-
-## ☁️ Render Deployment
-
-### Method 1: Using Blueprint (Recommended)
-
-1. Push code to GitHub
-2. Connect repository to Render
-3. Render will auto-detect `render.yaml` and deploy
-
-### Method 2: Manual Setup
-
-1. **Create PostgreSQL Database**
-   - Go to Render Dashboard
-   - New → PostgreSQL
-   - Note the Internal Database URL
-
-2. **Create Web Service**
-   - New → Web Service
-   - Connect your GitHub repo
-   - Environment: Docker
-   - Add environment variables:
-     ```
-     DATABASE_URL=<from-postgres-database>
-     RAPIDAPI_PROXY_SECRET=your-secret
-     ```
-
-3. **Deploy**
-   - Render will build and deploy automatically
-
-## 📡 API Endpoints
-
-### Single Email Validation
-
-```bash
-POST /api/v1/email/validate
-```
-
-**Request:**
 ```json
 {
   "email": "user@example.com",
@@ -195,79 +104,74 @@ POST /api/v1/email/validate
   "email": "user@example.com",
   "is_valid": true,
   "syntax_valid": true,
-  "has_mx_records": true,
-  "is_disposable": false,
-  "smtp_verified": true,
-  "deliverability_score": 95.0,
-  "score_category": "Excellent",
-  "risk_level": "Low",
   "domain": "example.com",
-  "mx_records": ["mail.example.com"],
-  "recommendations": ["Email appears highly deliverable."]
+  "has_mx_records": true,
+  "mx_records": [
+    {
+      "host": "mail.example.com",
+      "priority": 10
+    }
+  ],
+  "is_disposable": false,
+  "smtp_check_performed": true,
+  "mailbox_exists": true,
+  "smtp_response": "250 OK",
+  "deliverability_score": 95.0,
+  "checked_at": "2024-02-12T10:30:00Z",
+  "processing_time_ms": 1234.56
 }
 ```
 
-### Batch Validation
+#### 2. Bulk Validation
 
-```bash
-POST /api/v1/email/validate/batch
-```
+**POST** `/validate/bulk`
 
-**Request:**
 ```json
 {
-  "emails": ["user1@example.com", "user2@example.com"],
+  "emails": [
+    "user1@example.com",
+    "user2@example.com"
+  ],
   "check_smtp": false
 }
 ```
 
-### Statistics
+#### 3. Health Check
 
-```bash
-GET /api/v1/email/stats
-```
+**GET** `/health`
 
-**Response:**
 ```json
 {
-  "total_validations": 1234,
-  "valid_emails": 980,
-  "disposable_emails": 45,
-  "average_score": 78.5
+  "status": "healthy",
+  "version": "1.0.0",
+  "timestamp": "2024-02-12T10:30:00Z"
 }
 ```
 
-## 🎯 Deliverability Scoring
+## 📊 Deliverability Score
 
-| Score | Category | Risk Level | Meaning |
-|-------|----------|------------|---------|
-| 90-100 | Excellent | Low | Highly deliverable |
-| 70-89 | Good | Medium | Should deliver |
-| 50-69 | Fair | High | May have issues |
-| 1-49 | Poor | Very High | Likely to bounce |
-| 0 | Invalid | Very High | Will not deliver |
+The score (0-100) is calculated based on:
 
-### Score Breakdown
-- Valid syntax: **20 points**
-- Has MX records: **30 points**
-- Not disposable: **25 points**
-- SMTP verified: **25 points**
+| Check | Points |
+|-------|--------|
+| Valid Syntax | 20 |
+| Has MX Records | 30 |
+| Not Disposable | 20 |
+| Mailbox Exists (SMTP) | 30 |
 
-## 🔑 RapidAPI Integration
+**Score Interpretation:**
+- 90-100: Excellent deliverability
+- 70-89: Good deliverability
+- 50-69: Fair (some issues)
+- 0-49: Poor (high risk)
 
-### Headers Required
+## 💰 Pricing Plans (RapidAPI)
 
-```
-X-RapidAPI-User: <user-id>
-X-RapidAPI-Subscription: <tier-name>
-```
-
-### Rate Limiting
-
-Rate limits are enforced by RapidAPI based on subscription tier:
-- Free: 100/month
-- Basic: 5,000/month
-- Pro: 50,000/month
+| Plan | Price | Validations/Month |
+|------|-------|-------------------|
+| Free | $0 | 100 |
+| Basic | $19 | 5,000 |
+| Pro | $49 | 50,000 |
 
 ## 🧪 Testing
 
@@ -277,74 +181,95 @@ pytest
 
 # With coverage
 pytest --cov=app tests/
-
-# Run specific test
-pytest tests/test_validators.py
 ```
 
-## 📊 Database Schema
+## 📁 Project Structure
 
-```sql
-CREATE TABLE email_validations (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR NOT NULL,
-    is_valid_syntax BOOLEAN DEFAULT FALSE,
-    has_mx_records BOOLEAN DEFAULT FALSE,
-    is_disposable BOOLEAN DEFAULT FALSE,
-    smtp_valid BOOLEAN,
-    deliverability_score FLOAT NOT NULL,
-    domain VARCHAR,
-    mx_records VARCHAR,
-    api_user VARCHAR,
-    subscription_tier VARCHAR DEFAULT 'free',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+```
+email-validator-api/
+├── app/
+│   ├── api/
+│   │   └── routes.py          # API endpoints
+│   ├── core/
+│   │   └── config.py          # Configuration
+│   ├── models/
+│   │   └── schemas.py         # Pydantic models
+│   ├── services/
+│   │   └── validator.py       # Email validation logic
+│   ├── utils/                 # Utility functions
+│   └── main.py               # FastAPI app
+├── tests/                     # Test files
+├── .env.example              # Environment template
+├── requirements.txt          # Dependencies
+└── README.md                # This file
 ```
 
-## 🔐 Security Considerations
+## 🚀 Deployment to Render
 
-1. **SMTP Verification**: Disabled by default in batch mode (can be abused)
-2. **Rate Limiting**: Implement at RapidAPI level
-3. **Input Validation**: All inputs validated with Pydantic
-4. **Database**: Uses parameterized queries (SQLAlchemy ORM)
-5. **CORS**: Configurable via environment variables
+1. **Create a new Web Service on Render**
+2. **Connect your GitHub repository**
+3. **Configure the service:**
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. **Add environment variables** from `.env`
+5. **Deploy!**
 
-## 🚧 Roadmap
+## 📝 Development Roadmap
 
-- [ ] Email reputation scoring (blacklist checking)
-- [ ] Catch-all detection
-- [ ] Role-based email detection (admin@, info@, etc.)
-- [ ] Email enrichment (name, company info)
-- [ ] Webhooks for async validation
-- [ ] Next.js frontend dashboard
-- [ ] Export validation reports (CSV, PDF)
-- [ ] GraphQL API
-- [ ] Real-time validation via WebSocket
+### Phase 1 ✅ (Current)
+- [x] FastAPI setup
+- [x] Syntax validation
+- [x] MX record verification
+- [x] Disposable email detection
+- [x] Basic scoring system
 
-## 📝 License
+### Phase 2 🚧 (Next)
+- [ ] SMTP verification implementation
+- [ ] PostgreSQL database integration
+- [ ] Usage tracking & rate limiting
+- [ ] API key authentication
 
-MIT License - see LICENSE file for details
+### Phase 3 📋 (Future)
+- [ ] Advanced SMTP checks (catch-all detection)
+- [ ] Role-based email detection (info@, admin@)
+- [ ] Email reputation scoring
+- [ ] Webhook notifications
+- [ ] Dashboard UI (Next.js)
 
 ## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
 
 ## 📧 Support
 
-For issues or questions:
-- Create an issue on GitHub
-- Contact via RapidAPI support (once published)
+- **Documentation**: `/docs` (Swagger UI)
+- **Issues**: GitHub Issues
+- **Email**: support@yourdomain.com
 
-## 🎉 Acknowledgments
+## ⚡ Performance Tips
 
-- FastAPI for the amazing framework
-- RapidAPI for marketplace platform
-- Render for simple deployment
+1. **Disable SMTP checks for bulk operations** - Much faster
+2. **Cache MX records** - Coming in Phase 2
+3. **Use bulk endpoint** - More efficient than multiple single calls
+4. **Monitor rate limits** - Plan accordingly
+
+## 🔒 Security
+
+- All API requests require authentication via RapidAPI
+- Rate limiting enforced at marketplace level
+- No sensitive data stored
+- SMTP connections timeout after 10s
 
 ---
 
-**Built with ❤️ using FastAPI and PostgreSQL**
+Built with ❤️ using FastAPI

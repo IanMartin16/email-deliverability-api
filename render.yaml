@@ -1,51 +1,5 @@
-services:
-  # Web Service
-  - type: web
-    name: email-deliverability-api
-    runtime: python3
-    plan: free  # FREE tier - 750 hours/month
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    region: oregon  # Change to your preferred region
-    branch: main  # Your git branch
-    
-    # Environment variables
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: email-deliverability-db
-          property: connectionString
-      
-      - key: RAPIDAPI_PROXY_SECRET
-        sync: false  # Set this manually in Render dashboard
-      
-      - key: SMTP_CHECK_ENABLED
-        value: true
-      
-      - key: SMTP_TIMEOUT
-        value: 10
-      
-      - key: FREE_TIER_LIMIT
-        value: 100
-      
-      - key: BASIC_TIER_LIMIT
-        value: 5000
-      
-      - key: PRO_TIER_LIMIT
-        value: 50000
-      
-      - key: ALLOWED_ORIGINS
-        value: '["*"]'
-    
-    # Health check
-    healthCheckPath: /health
-    
-    # Auto-deploy on git push
-    autoDeploy: true
+# Build Command
+pip install -r requirements.txt
 
-# Database
-databases:
-  - name: email-deliverability-db
-    databaseName: email_deliverability
-    plan: free  # FREE tier - 90 days free, then $7/month
-    region: oregon  # Same region as web service
+# Start Command  
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
