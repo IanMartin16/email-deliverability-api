@@ -9,8 +9,11 @@ from app.models.schemas import (
 )
 from app.services.validator import email_validator
 from app.services.logger import validation_logger
+from app.services.rate_limiter import rate_limiter
 from app.core.config import settings
 from app.core.database import get_db
+from app.middleware.auth import optional_api_key, get_current_user
+from app.models.database import User
 import time
 from datetime import datetime
 from typing import Optional
@@ -32,7 +35,8 @@ async def health_check():
 @router.post("/validate", response_model=EmailValidationResponse)
 async def validate_email(
     request: EmailValidationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    auth: Optional[dict] = Depends(optional_api_key)
 ):
     """
     Validate a single email address
@@ -43,9 +47,36 @@ async def validate_email(
     - Disposable email detection
     - Optional SMTP mailbox verification
     
+    **Authentication:** Optional (works without API key for testing)
+    **Rate Limiting:** Applied if authenticated
+    
     Returns a deliverability score from 0-100.
     """
     start_time = time.time()
+    
+    user_id = None
+    api_key_id = None
+    
+    # Si hay autenticación, verificar rate limit
+    if auth:
+        user = auth["user"]
+        api_key = auth["api_key"]
+        user_id = user.id
+        api_key_id = api_key.id
+        
+        # Verificar rate limit
+        can_proceed, quota_info = rate_limiter.check_rate_limit(db, user.id)
+        
+        if not can_proceed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded. You have used {quota_info['quota_used']}/{quota_info['quota_limit']} validations this month. Resets at {quota_info['reset_at']}",
+                headers={
+                    "X-RateLimit-Limit": str(quota_info['quota_limit']),
+                    "X-RateLimit-Remaining": str(quota_info['quota_remaining']),
+                    "X-RateLimit-Reset": quota_info['reset_at']
+                }
+            )
     
     try:
         # Perform validation
@@ -74,17 +105,23 @@ async def validate_email(
             processing_time_ms=round(processing_time, 2)
         )
         
-        # Log validation to database (optional, no error if DB not available)
+        # Log validation to database
         try:
             validation_logger.log_validation(
                 db=db,
                 email=request.email,
                 validation_result=result,
-                processing_time_ms=processing_time
+                processing_time_ms=processing_time,
+                user_id=user_id,
+                api_key_id=api_key_id
             )
         except Exception as log_error:
-            # Silently fail if logging doesn't work (DB not configured)
+            # Silently fail if logging doesn't work
             pass
+        
+        # Increment usage counter if authenticated
+        if auth:
+            rate_limiter.increment_usage(db, user_id, count=1)
         
         return response
         

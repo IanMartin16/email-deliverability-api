@@ -78,3 +78,6 @@ ehthumbs.db
 Desktop.ini
 
 INSTALL.md
+# Testing
+test_phase3.py
+test_smtp_validation.py
