@@ -81,3 +81,7 @@ INSTALL.md
 # Testing
 test_phase3.py
 test_smtp_validation.py
+test_complete.py
+test_data.py
+test_validation.py
+setup_user.py
