@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.core.config import settings
+from app.core.database import init_db
 
 # Create FastAPI app
 app = FastAPI(
@@ -84,6 +85,16 @@ async def startup_event():
     print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
     print(f"📍 API Documentation: http://localhost:8000/docs")
     print(f"🔍 Health Check: http://localhost:8000{settings.API_V1_PREFIX}/health")
+    
+    # Inicializar base de datos
+    print("📦 Initializing database...")
+    try:
+        init_db()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"⚠️  Database initialization failed: {e}")
+        print("   The API will work without database (no logging)")
+
 
 
 @app.on_event("shutdown")

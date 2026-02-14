@@ -5,6 +5,7 @@ from typing import Optional, List
 from email_validator import validate_email, EmailNotValidError
 from app.models.schemas import MXRecord
 from app.core.config import settings
+from app.services.smtp_validator import smtp_validator
 
 
 class EmailValidatorService:
@@ -185,11 +186,29 @@ class EmailValidatorService:
         result["has_mx_records"] = has_mx
         result["mx_records"] = mx_records
         
-        # Step 5: SMTP verification (optional, implemented later)
-        if check_smtp and has_mx:
-            # TODO: Implement SMTP verification in next iteration
-            result["smtp_check_performed"] = False
-            result["mailbox_exists"] = None
+        # Step 5: SMTP verification (if requested and MX records exist)
+        if check_smtp and has_mx and mx_records:
+            try:
+                result["smtp_check_performed"] = True
+                
+                # Verificar con fallback a múltiples MX servers
+                mailbox_exists, smtp_response, is_catch_all = await smtp_validator.verify_with_fallback(
+                    email, 
+                    mx_records
+                )
+                
+                result["mailbox_exists"] = mailbox_exists
+                result["smtp_response"] = smtp_response
+                result["is_catch_all"] = is_catch_all
+                
+                # Si es catch-all, reducir confianza
+                if is_catch_all:
+                    result["smtp_response"] += " (Warning: Catch-all domain detected)"
+                    
+            except Exception as e:
+                result["smtp_check_performed"] = False
+                result["mailbox_exists"] = None
+                result["smtp_response"] = f"SMTP check failed: {str(e)}"
         
         # Calculate final score
         result["deliverability_score"] = self.calculate_deliverability_score(

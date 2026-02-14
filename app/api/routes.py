@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy.orm import Session
 from app.models.schemas import (
     EmailValidationRequest,
     EmailValidationResponse,
@@ -7,9 +8,12 @@ from app.models.schemas import (
     HealthResponse
 )
 from app.services.validator import email_validator
+from app.services.logger import validation_logger
 from app.core.config import settings
+from app.core.database import get_db
 import time
 from datetime import datetime
+from typing import Optional
 
 router = APIRouter()
 
@@ -26,7 +30,10 @@ async def health_check():
 
 
 @router.post("/validate", response_model=EmailValidationResponse)
-async def validate_email(request: EmailValidationRequest):
+async def validate_email(
+    request: EmailValidationRequest,
+    db: Session = Depends(get_db)
+):
     """
     Validate a single email address
     
@@ -62,9 +69,22 @@ async def validate_email(request: EmailValidationRequest):
             smtp_check_performed=result["smtp_check_performed"],
             mailbox_exists=result["mailbox_exists"],
             smtp_response=result["smtp_response"],
+            is_catch_all=result.get("is_catch_all"),
             deliverability_score=result["deliverability_score"],
             processing_time_ms=round(processing_time, 2)
         )
+        
+        # Log validation to database (optional, no error if DB not available)
+        try:
+            validation_logger.log_validation(
+                db=db,
+                email=request.email,
+                validation_result=result,
+                processing_time_ms=processing_time
+            )
+        except Exception as log_error:
+            # Silently fail if logging doesn't work (DB not configured)
+            pass
         
         return response
         

@@ -40,6 +40,7 @@ class EmailValidationResponse(BaseModel):
     smtp_check_performed: bool = False
     mailbox_exists: Optional[bool] = None
     smtp_response: Optional[str] = None
+    is_catch_all: Optional[bool] = None
     
     # Overall score
     deliverability_score: float = Field(
