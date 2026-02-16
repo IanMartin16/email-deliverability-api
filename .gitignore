@@ -85,3 +85,5 @@ test_complete.py
 test_data.py
 test_validation.py
 setup_user.py
+generate-key.py
+generate-api-key.py
