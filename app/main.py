@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.api.auth import router as auth_router
 from app.core.config import settings
-from app.core.database import init_db
+#from app.core.database import init_db
 
 # Create FastAPI app
 app = FastAPI(
@@ -46,63 +46,32 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(
-    router,
-    prefix=settings.API_V1_PREFIX,
-    tags=["Email Validation"]
-)
-
-# Include auth routes
-app.include_router(
-    auth_router,
-    prefix=settings.API_V1_PREFIX,
-    tags=["Authentication"]
-)
-
+app.include_router(router, prefix=settings.API_V1_PREFIX, tags=["Email Validation"])
+app.include_router(auth_router, prefix=settings.API_V1_PREFIX, tags=["Authentication"])
 
 @app.get("/")
 async def root():
-    """
-    Root endpoint with API information
-    """
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "docs": "/docs",
-        "health": f"{settings.API_V1_PREFIX}/health",
-        "endpoints": {
-            "validate_single": f"{settings.API_V1_PREFIX}/validate",
-            "validate_bulk": f"{settings.API_V1_PREFIX}/validate/bulk",
-            "stats": f"{settings.API_V1_PREFIX}/stats"
-        }
+        "health": f"{settings.API_V1_PREFIX}/health"
     }
 
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
 
 @app.on_event("startup")
 async def startup_event():
-    """
-    Startup event handler
-    """
     print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
-    print(f"📍 API Documentation: http://localhost:8000/docs")
-    print(f"🔍 Health Check: http://localhost:8000{settings.API_V1_PREFIX}/health")
-    
-    # Inicializar base de datos
-    print("📦 Initializing database...")
-    try:
-        init_db()
-        print("✅ Database initialized successfully")
-    except Exception as e:
-        print(f"⚠️  Database initialization failed: {e}")
-        print("   The API will work without database (no logging)")
-
+    print("✅ Startup completed")
 
 
 @app.on_event("shutdown")
