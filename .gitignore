@@ -40,6 +40,7 @@ ENV/
 .env
 .env.local
 .env.*.local
+requirements.txt
 
 # Database
 *.db
@@ -87,3 +88,5 @@ test_validation.py
 setup_user.py
 generate-key.py
 generate-api-key.py
+
+EXAMPLES.md
