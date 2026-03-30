@@ -208,33 +208,37 @@ class SMTPValidator:
         email: str,
         mx_records: list
     ) -> Tuple[bool, str, bool]:
-        """
-        Intenta verificar con múltiples servidores MX como fallback
-        
-        Args:
-            email: Email to verify
-            mx_records: List of MX records (sorted by priority)
-            
-        Returns:
-            (exists, response, is_catch_all)
-        """
         if not mx_records:
             return False, "No MX records found", False
-        
-        # Intentar con cada servidor MX (hasta 3)
+
+        last_result = (False, "No SMTP verification attempted", False)
+
         for mx_record in mx_records[:3]:
+            if not getattr(mx_record, "host", None):
+                continue
+
             exists, response, is_catch_all = await self.verify_mailbox(
-                email, 
+                email,
                 mx_record.host
             )
-            
-            # Si obtuvimos una respuesta concluyente, retornar
-            if "timeout" not in response.lower() and "error" not in response.lower():
-                return exists, response, is_catch_all
-        
-        # Si todos fallaron, retornar el último resultado
-        return exists, response, is_catch_all
 
+            last_result = (exists, response, is_catch_all)
+
+            response_lower = response.lower()
+
+            non_conclusive_errors = [
+                "timeout",
+                "error",
+                "could not resolve",
+                "connection failed",
+                "server disconnected",
+                "connection error",
+            ]
+
+            if not any(text in response_lower for text in non_conclusive_errors):
+                return exists, response, is_catch_all
+
+        return last_result
 
 # Singleton instance
 smtp_validator = SMTPValidator()

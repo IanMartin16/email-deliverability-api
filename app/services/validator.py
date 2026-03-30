@@ -76,12 +76,16 @@ class EmailValidatorService:
             )
             
             for rdata in answers:
-                mx_records.append(
-                    MXRecord(
-                        host=str(rdata.exchange).rstrip('.'),
-                        priority=rdata.preference
+                host = str (rdata.exchange).rstrip('.').strip()
+                priority = int(rdata.preference)
+
+                if host:
+                    mx_records.append(
+                        MXRecord(
+                            host=host,
+                            priority=priority
+                        )
                     )
-                )
             
             # Sort by priority (lower is higher priority)
             mx_records.sort(key=lambda x: x.priority)
@@ -187,14 +191,19 @@ class EmailValidatorService:
         result["mx_records"] = mx_records
         
         # Step 5: SMTP verification (if requested and MX records exist)
-        if check_smtp and has_mx and mx_records:
+        valid_mx_records = [mx for mx in mx_records if getattr(mx, "host", None)]
+
+        result["has_mx_records"] = len(valid_mx_records) > 0
+        result["mx_records"] = valid_mx_records
+        
+        if check_smtp and has_mx and valid_mx_records:
             try:
                 result["smtp_check_performed"] = True
                 
                 # Verificar con fallback a múltiples MX servers
                 mailbox_exists, smtp_response, is_catch_all = await smtp_validator.verify_with_fallback(
                     email, 
-                    mx_records
+                    valid_mx_records
                 )
                 
                 result["mailbox_exists"] = mailbox_exists
