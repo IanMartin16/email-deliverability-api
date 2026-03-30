@@ -25,7 +25,7 @@ class SMTPValidator:
         self, 
         email: str, 
         mx_host: str
-    ) -> Tuple[bool, str, bool]:
+    ) -> Tuple[Optional[bool], str, bool]:
         """
         Verifica si un mailbox existe usando SMTP RCPT TO
         
@@ -54,7 +54,7 @@ class SMTPValidator:
         self, 
         email: str, 
         mx_host: str
-    ) -> Tuple[bool, str, bool]:
+    ) -> Tuple[Optional[bool], str, bool]:
         """
         Verificación SMTP síncrona (se ejecuta en thread pool)
         
@@ -103,19 +103,24 @@ class SMTPValidator:
             return exists, f"{code} {response_text}", is_catch_all
             
         except smtplib.SMTPServerDisconnected:
-            return False, "Server disconnected unexpectedly", False
-            
-        except smtplib.SMTPConnectError as e:
-            return False, f"Connection error: {str(e)}", False
-            
+            return None, "SMTP verification inconclusive: mail server closed the connection unexpectedly", False
+
+        except smtplib.SMTPConnectError:
+            return None, "SMTP verification inconclusive: could not establish connection to the mail server", False
+
         except socket.timeout:
-            return False, "Timeout connecting to mail server", False
-            
+            return None, "SMTP verification inconclusive: mail server did not respond before timeout", False
+
         except socket.gaierror:
-            return False, "Could not resolve MX hostname", False
-            
-        except Exception as e:
-            return False, f"SMTP error: {str(e)}", False
+            return None, "SMTP verification inconclusive: MX host could not be resolved", False
+
+        except OSError as e:
+            if "Network is unreachable" in str(e):
+                return None, "SMTP verification inconclusive: network access to the mail server is unavailable", False
+            return None, "SMTP verification inconclusive: network-related error during mailbox verification", False
+
+        except Exception:
+            return None, "SMTP verification inconclusive: temporary technical error during mailbox verification", False
             
         finally:
             if smtp:
@@ -207,11 +212,11 @@ class SMTPValidator:
         self,
         email: str,
         mx_records: list
-    ) -> Tuple[bool, str, bool]:
+    ) -> Tuple[Optional[bool], str, bool]:
         if not mx_records:
-            return False, "No MX records found", False
+            return None, "SMTP verification skipped: no MX records found", False
 
-        last_result = (False, "No SMTP verification attempted", False)
+        last_result = (None, "SMTP verification inconclusive: no reacheable mail server responded", False)
 
         for mx_record in mx_records[:3]:
             if not getattr(mx_record, "host", None):
@@ -226,7 +231,7 @@ class SMTPValidator:
 
             response_lower = response.lower()
 
-            non_conclusive_errors = [
+            non_conclusive_markers = [
                 "timeout",
                 "error",
                 "could not resolve",
@@ -235,7 +240,10 @@ class SMTPValidator:
                 "connection error",
             ]
 
-            if not any(text in response_lower for text in non_conclusive_errors):
+            if exists is True:
+                return exists, response, is_catch_all
+            
+            if exists is False and not any(marker in response_lower for marker in non_conclusive_markers):
                 return exists, response, is_catch_all
 
         return last_result
