@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 
+from sqlalchemy import true
+
 
 class Settings(BaseSettings):
     # App
@@ -30,7 +32,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+    USE_ORCHESTRATOR=true
+
     class Config:
         env_file = ".env"
         case_sensitive = True

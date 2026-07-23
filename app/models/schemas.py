@@ -6,6 +6,7 @@ from datetime import datetime
 class EmailValidationRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address to validate")
     check_smtp: bool = Field(default=True, description="Perform SMTP mailbox verification")
+    mode: str = Field(default="standard", description="quick | standard")
     
     class Config:
         json_schema_extra = {
@@ -53,6 +54,8 @@ class EmailValidationResponse(BaseModel):
     # Metadata
     checked_at: datetime = Field(default_factory=datetime.utcnow)
     processing_time_ms: Optional[float] = None
+    verdict: Optional[str] = None      # ACCEPT / REJECT / RISKY
+    checks: Optional[list[dict]] = None
     
     class Config:
         json_schema_extra = {

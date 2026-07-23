@@ -11,6 +11,7 @@ from app.services.validator import email_validator
 from app.services.logger import validation_logger
 from app.services.rate_limiter import rate_limiter
 from app.core.config import settings
+from app.services.orchestrator import orchestrator, to_response
 from app.core.database import get_db
 from app.middleware.auth import optional_api_key, get_current_user
 from app.models.database import User
@@ -77,6 +78,39 @@ async def validate_email(
                     "X-RateLimit-Reset": quota_info['reset_at']
                 }
             )
+
+    USE_ORCHESTRATOR = getattr(settings, "USE_ORCHESTRATOR", True)
+
+    if USE_ORCHESTRATOR:
+        try:
+            mode = "quick" if not request.check_smtp else getattr(request, "mode", "standard")
+            assessment = await orchestrator.assess(request.email, mode=mode)
+            payload = to_response(assessment)
+            response = EmailValidationResponse(**payload)
+
+            # logging existente
+            try:
+                validation_logger.log_validation(
+                    db=db,
+                    email=request.email,
+                    validation_result=payload,
+                    processing_time_ms=payload["processing_time_ms"],
+                    user_id=user_id,
+                    api_key_id=api_key_id,
+                )
+            except Exception:
+                pass
+
+            # incrementar cuota si está autenticado
+            if auth:
+                rate_limiter.increment_usage(db, user_id, count=1)
+
+            return response
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Orchestrator error: {str(e)}",
+            )
     
     try:
         # Perform validation
@@ -103,7 +137,7 @@ async def validate_email(
             is_catch_all=result.get("is_catch_all"),
             deliverability_score=result["deliverability_score"],
             processing_time_ms=round(processing_time, 2)
-        )
+        )   
         
         # Log validation to database
         try:
